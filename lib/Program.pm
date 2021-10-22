@@ -5,7 +5,7 @@ use strict;
 use warnings;
 
 require Exporter;
-use AutoLoader qw(AUTOLOAD);
+#use AutoLoader qw(AUTOLOAD);
 
 our @ISA = qw(Exporter);
 
@@ -17,11 +17,11 @@ our @ISA = qw(Exporter);
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 our %EXPORT_TAGS = ( 'all' => [ qw(
-	curry Program genCmdSub lambda subroutine
+	curry Program StateMachine loadProgram genCmdSub lambda subroutine
 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} },
-	qw(Program genCmdSub lambda subroutine)
+	qw(Program StateMachine loadProgram genCmdSub lambda subroutine)
  );
 
 our @EXPORT = qw(
@@ -51,8 +51,17 @@ sub genCmdSub(&$;$){
 	};
 }
 
+sub lambda(&@){
+	my ($code, @params) = @_;
+	return sub {
+		$code->(@params);
+	};
+}
 
 sub Program(@){
+	use Data::Dumper;
+	my $sourcefile = [caller];
+	my $getsrccode = lambda { ___src($_[0], $_[1]) } ($sourcefile->[1], $sourcefile->[2]);
 	my $progname = shift;
 	my $extensions_help = ""; # Variable to hold extended usage info
 	sub ___exthelp{
@@ -109,10 +118,51 @@ sub Program(@){
 			return $idx + 1; # We return the next internal program index
 		}elsif($query =~ /^i$|idx|index/i){
 			return $idx; # We just return this functions internal index
+		}elsif($query =~ /source\s?file/i){
+			return $sourcefile; # Return program source file + line number
+		}elsif($query =~ /src/i){
+			# Here we return the program source code
+			sub ___src{
+				my ($file, $line) = @_;
+				use autodie;
+				open my $fh, "<", $file;
+				my $buff = "";
+				my $progstart = 0;
+				while(<$fh>){
+					if(m/Program\s*?\(/){
+						$progstart = $.;
+						$buff = $_;
+						next;
+					}elsif(m/Program\s*?\(/ and $. == $line){
+						close $fh;
+						return $_; # Source code on a single line
+					}
+					$buff .= $_;
+					if($. == $line){
+						close $fh;
+						return $buff; # We found the source code
+					}
+				}
+				confess "Error, failed to find source";
+			}
+			return ___src($sourcefile->[1], $sourcefile->[2]);
+		}elsif($query =~ /save|store/){
+			# We store the program into a file specified by the first parameter
+			use autodie;
+			my $fname = shift @params;
+			open my $fh, ">", $fname;
+			my $src = $getsrccode->();
+			print $fh $src;
+			close $fh;
+			if(-f $fname){
+				return 1; # Successfully stored program
+			}else{
+				return undef; # Signal error, file does not exist, something went wrong
+			}
 		}elsif($query =~ /run\s?Code|run|exe|exec|execute/i){
 			return $PROGRAM->(@params); # We execute the program and return its return value
 		}elsif($query =~ /^help$|usage|info/i){
-			# TODO: Fork/Daemonize/Dual-Fork/Parallel/Async-Thread
+			# TODO: Parallel/Async-Thread
 			HELPMSG:
 			# Here we simply display usage information for this function
 			my $helpmsg = <<INFO;
@@ -130,11 +180,11 @@ sub Program(@){
 
   params :
    This is just the array of parameters equal in function to \@_
-
-Extension information:
-  $extensions_help
-
 INFO
+		$helpmsg .= <<EXTINFO; if $extensions_help;
+Extension information:
+	$extensions_help
+EXTINFO
 		print $helpmsg and goto NORMAL_EXIT unless $DEBUG;
 		return $helpmsg;
 		}elsif($query =~ /dualfork|daemonize|service/i){
@@ -191,7 +241,7 @@ INFO
 			if(!ref($sub) eq "CODE"){
 				confess "Parameter to \$program->('$query', ...) must be a CODE reference";
 			}
-			push @progs, $sub;
+			push @prog, $sub;
 			return 1; # Indicate success
 		}elsif($query =~ /prepend/i){
 			# Prepend function to the start of the program
@@ -199,7 +249,7 @@ INFO
 			if(!ref($sub) eq "CODE"){
 				confess "Parameter to \$program->('$query', ...) must be a CODE reference";
 			}
-			unshift @progs, $sub;
+			unshift @prog, $sub;
 			return 1;
 		}elsif($query =~ /insert|plugin/i){
 			# Add a subroutine into the program at a given index
@@ -222,12 +272,6 @@ INFO
 	};
 }
 
-sub lambda(&@){
-	my ($code, @params) = @_;
-	return sub {
-		$code->(@params);
-	};
-}
 
 sub subroutine(&$@){
 	my ($code, $subname, @params) = @_;
@@ -267,7 +311,7 @@ sub StateMachine($\@){
 	for($vtype){
 		if(not defined $vtype or /digit/){
 			return sub {
-				my $STATE = 1
+				my $STATE = 1;
 				# A STATE of 0 means clean exit
 				# A negative STATE integer means unclean exit
 				while($STATE > 0){
@@ -341,6 +385,17 @@ sub curry($$){
 		# We reverse the curry order for easier use
 		return $f2->($f1->());
 	};
+}
+
+sub loadProgram($){
+	my $fname = shift;
+	use autodie;
+	open my $fh, "<", $fname;
+	local $/ = undef;
+	my $contents = <$fh>;
+	close $fh;
+	# This returns the program subroutine
+	return eval $contents;
 }
 
 # Preloaded methods go here.
@@ -430,7 +485,7 @@ and further extension.
 	$lambda->();
 
 	# Curry
-	my $curried = curry(sub { return 5}, sub { $_[0] * 2});
+	my $curried = curry(sub { return 5 }, sub { $_[0] * 2});
 	print $curried->(); # => 10
 	my $morecurried = curry($curried, sub { $_[0] * 5});
 	print $morecurried->(); # => 50
@@ -452,7 +507,19 @@ support for debugging purposes.
 
 =head2 EXPORT
 
-	Program( sub {}, sub {}, ... );
+=over 4
+
+=item Program
+
+=item StateMachine
+
+=item lambda
+
+=item subroutine
+
+=item curry
+
+=back
 
 =head1 SEE ALSO
 

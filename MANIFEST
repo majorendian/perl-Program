@@ -3,4 +3,5 @@ Makefile.PL
 MANIFEST
 README
 t/Program.t
+t/a_program.t
 lib/Program.pm

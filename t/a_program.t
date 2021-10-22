@@ -56,6 +56,7 @@ my $thirdprog = Program(
 	}
 );
 is_deeply $thirdprog->('exec'), { a => 15, b => 4, c => 3 }, "Third program with second program as subprogram";
+
 my $fourthprogram = Program(
 	$thirdprog->('program'),
 	sub {
@@ -74,4 +75,35 @@ my $fifthprog = Program(
 	$fourthprogram->('sub',1)
 );
 is_deeply $fifthprog->('exec'), { a => 14, b => 16, c => -1, d => 't'}, 'Program sequence re-use';
+
+
+my $progsource = Program(
+	sub {
+		return 1;
+	},
+	sub {
+		return $_[0]+7;
+	},
+);
+is_deeply $progsource->('source file'), ['main','t/a_program.t',87], "Check debug info for source code";
+is_deeply $fourthprogram->('source file'), ['main','t/a_program.t', 67], "Make sure previous programs point to correct source code lines";
+
+my $sourcecode = $progsource->('src');
+$progsource->('store', '/tmp/progsourcetest.pl');
+open my $fh, "<", "/tmp/progsourcetest.pl";
+my $contents = "";
+{
+	local $/ = undef;
+	$contents = <$fh>;
+}
+close $fh;
+unlink "/tmp/progsourcetest.pl";
+undef $fh;
+is_deeply $sourcecode, $contents, "Successfully stored and retrieved program source from file";
+# Lets try to load it
+my $loaded = eval $contents;
+is $progsource->('exec'),  $loaded->('exec'), "Loaded program runs identitcally to the original";
+
+$progsource->('store', "/tmp/progsource.pl");
+
 done_testing;
