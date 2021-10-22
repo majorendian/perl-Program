@@ -16,6 +16,7 @@ our @ISA = qw(Exporter);
 # This allows declaration	use Program ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
+
 our %EXPORT_TAGS = ( 'all' => [ qw(
 	curry Program StateMachine loadProgram genCmdSub lambda subroutine
 ) ] );
@@ -25,6 +26,7 @@ our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} },
  );
 
 our @EXPORT = qw(
+	SM_EXITOK
 );
 
 our $DEBUG = 0;
@@ -310,7 +312,7 @@ sub stateRoutine(&@){
 	};
 }
 
-sub StateMachine($\@){
+sub StateMachine($$){
 	my ($vtype, $progaref) = @_;
 	my $length = scalar(@$progaref);
 	SWITCH:
@@ -321,7 +323,7 @@ sub StateMachine($\@){
 				# A STATE of 0 means clean exit
 				# A negative STATE integer means unclean exit
 				while($STATE > 0){
-					my $r = $progaref->[$STATE]->('program')->($STATE);
+					my $r = $progaref->[$STATE - 1]->('program')->($STATE);
 					if($r =~ /\d+/){
 						$STATE = $r;
 					}else{
@@ -339,7 +341,7 @@ sub StateMachine($\@){
 				my $STATEH = { state => 1};
 				while($STATEH->{state} > 0){
 					my $prevstate = $STATEH->{state};
-					$STATEH = $progaref->[$STATEH->{state}]->('program')->($STATEH);
+					$STATEH = $progaref->[$STATEH->{state} - 1]->('program')->($STATEH);
 					confess "Return value must be a hash reference" unless ref($STATEH) eq "HASH";
 					confess "No 'state' keyword found. Terminating." unless defined $STATEH->{state};
 					if($prevstate == $STATEH->{state}){
@@ -359,7 +361,7 @@ sub StateMachine($\@){
 				my $STATEA = [1];
 				while($STATEA->[0] > 0){
 					my $prevstate = $STATEA->[0];
-					$STATEA = $progaref->[$STATEA->[0]]->('program')->($STATEA);
+					$STATEA = $progaref->[$STATEA->[0] - 1]->('program')->($STATEA);
 					confess "Return value must be an array reference" unless ref($STATEA) eq "ARRAY";
 					# We have to assume the first index of $aref is the next state
 					confess "0th index of return value must be an integer" unless $STATEA->[0] =~ /\d+/;
