@@ -76,19 +76,30 @@ CMP
   my $prog1 = Program(
     sub {
       print "State 1\n";
+      return 3;
     }
   );
   my $prog2 = Program(
     sub {
       print "State 2\n";
+      return 0;
     }
   );
   my $prog3 = Program(
     sub {
-      print "State 3\n":
+      print "State 3\n";
+      return 2;
     }
   );
-}
+  my $mem;
+  open my $fh, ">", \$mem;
+  my $orig = select $fh;
+  my $sm = StateMachine('digit', [$prog1, $prog2, $prog3]);
+  $sm->();
+  close $fh;
+  select $orig;
+  is_deeply $mem, "State 1\nState 3\nState 2\n", "State switching";
 
+}
 
 done_testing;
