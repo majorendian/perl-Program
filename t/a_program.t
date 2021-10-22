@@ -3,7 +3,7 @@ use warnings;
 
 use lib 'lib';
 use Test::More;
-use Program qw(Program);
+use Program qw(Program loadProgram);
 $Program::DEBUG = 1;
 
 my $program = Program('myprogram',
@@ -79,7 +79,7 @@ is_deeply $fifthprog->('exec'), { a => 14, b => 16, c => -1, d => 't'}, 'Program
 
 my $progsource = Program(
 	sub {
-		return 1;
+		return shift // 1;
 	},
 	sub {
 		return $_[0]+7;
@@ -105,5 +105,52 @@ my $loaded = eval $contents;
 is $progsource->('exec'),  $loaded->('exec'), "Loaded program runs identitcally to the original";
 
 $progsource->('store', "/tmp/progsource.pl");
+# Check load function
+my $loadedtwo = loadProgram("/tmp/progsource.pl");
+unlink "/tmp/progsource.pl";
+is $loadedtwo->('exec'), $progsource->('exec'), "Load program routine check";
+undef $loaded, $loadedtwo;
+
+my $plugable = Program(
+	sub {
+		my $param = shift // 1;
+		return $param * $param;
+	},
+	sub {
+		my $param = shift;
+		return $param * 4;
+	},
+	sub {
+		my $param = shift;
+		return $param / 2.0;
+	}
+);
+
+is $plugable->('exec'), 2, "Original plugable program";
+
+$plugable->('plugin', 1, sub {
+	my $param = shift;
+	return $param * 2;
+});
+
+is $plugable->('exec'), 4, "Plugin function successfully inserted";
+
+$plugable->('prepend', sub { 
+	my $param = shift // 1;
+	return $param * 10;
+});
+
+is $plugable->('exec'), 400, "Plugable prepend successfull";
+
+$plugable->('append', $progsource->('program'));
+
+is $plugable->('exec'), 407, "Sub program appened to plugable program";
+
+$plugable->('add info', <<INFO);
+	This test plugable doesn't expect any parameters
+INFO
+
+like $plugable->('info'), qr/This test plugable doesn't expect any parameters/, "Check info addition";
+
 
 done_testing;

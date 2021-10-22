@@ -66,7 +66,10 @@ sub Program(@){
 	my $extensions_help = ""; # Variable to hold extended usage info
 	sub ___exthelp{
 		no warnings;
-		return sub { $extensions_help };
+		return sub {
+			$extensions_help = $_[0] if $_[0];
+			return $extensions_help;
+		};
 	}
 	if(ref($progname)eq"CODE"){
 		# Assuming this is a string, but it doesnt matter.
@@ -161,12 +164,12 @@ sub Program(@){
 			}
 		}elsif($query =~ /run\s?Code|run|exe|exec|execute/i){
 			return $PROGRAM->(@params); # We execute the program and return its return value
-		}elsif($query =~ /^help$|usage|info/i){
+		}elsif($query =~ /^help$|usage|^info$/i){
 			# TODO: Parallel/Async-Thread
 			HELPMSG:
 			# Here we simply display usage information for this function
 			my $helpmsg = <<INFO;
-	\$program\-\>([query],[params]);
+	\$program\-\>(\$query,\@params);
   query :
    name | id                                = Returns name of program
    chainLength | length | number | size     = Returns the lenght of the program in number of functions
@@ -181,9 +184,10 @@ sub Program(@){
   params :
    This is just the array of parameters equal in function to \@_
 INFO
-		$helpmsg .= <<EXTINFO; if $extensions_help;
+		my $exthelp = ___exthelp()->();
+		$helpmsg .= <<EXTINFO if $exthelp;
 Extension information:
-	$extensions_help
+   $exthelp
 EXTINFO
 		print $helpmsg and goto NORMAL_EXIT unless $DEBUG;
 		return $helpmsg;
@@ -230,12 +234,13 @@ EXTINFO
 			}else{
 				confess "Failed to create daemon process from program. `fork` returned `undef`";
 			}
-		}elsif($query =~ /exthelp|add\s?help|add\sinfo/i){
+		}elsif($query =~ /^(exthelp|add ?help|add ?info)$/ni){
 			# Add extra help info to this specific program
-			$extensions_help = shift @params;
-			return 1 if $extensions_help; # Return 1, message successfully added
+			___exthelp()->(shift @params);
+			return 1 if ___exthelp()->(); # Return 1, message successfully added
+			goto ERROR_EXIT;
 			return undef; # Undef is typically an error
-		}elsif($query =~ /extend|append/i){
+		}elsif($query =~ /^(extend|append)/ni){
 			# Append function to the end of the program
 			my $sub = shift @params;
 			if(!ref($sub) eq "CODE"){
@@ -243,7 +248,7 @@ EXTINFO
 			}
 			push @prog, $sub;
 			return 1; # Indicate success
-		}elsif($query =~ /prepend/i){
+		}elsif($query =~ /^prepend$/i){
 			# Prepend function to the start of the program
 			my $sub = shift @params;
 			if(!ref($sub) eq "CODE"){
@@ -258,8 +263,9 @@ EXTINFO
 				confess "Third parameter to \$program->('$query',\$index, ...) must be a CODE reference";
 			}
 			splice @prog, $index, 0, $sub;
+			return 1;
 		}else{
-			confess "Incorrect program invokation";
+			confess "Incorrect program invocation";
 			return undef;
 		}
 		# If we end up here, something went wrong.
