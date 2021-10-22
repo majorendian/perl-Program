@@ -36,8 +36,6 @@ use warnings FATAL => qw(all);
 use Carp qw(cluck confess);
 use Test::More;
 
-my $cmdline = join " ", @_;
-
 sub genCmdSub(&$;$){
 	my ($codeblock, $regex, $name) = @_;
 	return sub {
@@ -55,7 +53,7 @@ sub genCmdSub(&$;$){
 sub lambda(&@){
 	my ($code, @params) = @_;
 	return sub {
-		$code->(@params);
+		$code->(@params, @_);
 	};
 }
 
@@ -280,6 +278,8 @@ EXTINFO
 }
 
 
+#NOTE: May be removed
+# Wont really work the way I thought
 sub subroutine(&$@){
 	my ($code, $subname, @params) = @_;
 	return sub {
@@ -291,23 +291,11 @@ sub subroutine(&$@){
 		# to the caller
 		if($query =~ /name|id/i){
 			return $subname;
-		}elsif($query =~ /execute|exe|exec|e|run/i){
+		}elsif($query =~ /execute|exe|exec|run/i){
 			return $lambda->();
 		}elsif($query =~ /lambda|sub|subroutine/i){
 			return $lambda;
 		}
-	};
-}
-
-sub stateRoutine(&@){
-	my ($code, @params) = @_;
-	return sub {
-		my $r = $code->(@params);
-		if($r !~ /\d+/){
-			# If result is not a digit, issue a warning
-			cluck "A state routine should return a number indicating next state. Using FALLTHROUGH option.";
-		}
-		return $r;
 	};
 }
 
@@ -419,6 +407,14 @@ sub Machine(@){
 	};
 }
 
+# NOTE: Idea for later
+sub Monolith(@){
+	my $table = \%{@_};
+	exists $table->{machines} and
+	exists $table->{programs} and
+	exists $table->{triggers};
+}
+
 sub loadProgram($){
 	my $fname = shift;
 	use autodie;
@@ -512,9 +508,9 @@ and further extension.
 	# Stop the daemon
 	kill $pid;
 
-	# Create an anonymous function (pretty much equivalent to `sub {...};`)
+	# Create an anonymous function with 'baked in' parameters
 	my $lambda = lambda { ... } qw(param1 param2 ...);
-	$lambda->();
+	$lambda->($more, $parameters);
 
 	# Curry
 	my $curried = curry(sub { return 5 }, sub { $_[0] * 2});
