@@ -2,8 +2,8 @@ use strict;
 use warnings;
 
 use lib 'lib';
-use Test::More tests => 10;
-use Program;
+use Test::More;
+use Program qw(Program);
 $Program::DEBUG = 1;
 
 my $program = Program('myprogram',

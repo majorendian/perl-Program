@@ -181,9 +181,33 @@ INFO
 				confess "Failed to create daemon process from program. `fork` returned `undef`";
 			}
 		}elsif($query =~ /exthelp|add\s?help|add\sinfo/i){
+			# Add extra help info to this specific program
 			$extensions_help = shift @params;
 			return 1 if $extensions_help; # Return 1, message successfully added
 			return undef; # Undef is typically an error
+		}elsif($query =~ /extend|append/i){
+			# Append function to the end of the program
+			my $sub = shift @params;
+			if(!ref($sub) eq "CODE"){
+				confess "Parameter to \$program->('$query', ...) must be a CODE reference";
+			}
+			push @progs, $sub;
+			return 1; # Indicate success
+		}elsif($query =~ /prepend/i){
+			# Prepend function to the start of the program
+			my $sub = shift @params;
+			if(!ref($sub) eq "CODE"){
+				confess "Parameter to \$program->('$query', ...) must be a CODE reference";
+			}
+			unshift @progs, $sub;
+			return 1;
+		}elsif($query =~ /insert|plugin/i){
+			# Add a subroutine into the program at a given index
+			my ($index, $sub) = @params;
+			if(!ref($sub) eq "CODE"){
+				confess "Third parameter to \$program->('$query',\$index, ...) must be a CODE reference";
+			}
+			splice @prog, $index, 0, $sub;
 		}else{
 			confess "Incorrect program invokation";
 			return undef;
@@ -210,7 +234,10 @@ sub subroutine(&$@){
 	return sub {
 		my $query = shift;
 		my $lambda = lambda { $code->(@_) } @params;
+		# Run subroutine by default as if it were a simple sub
 		return $lambda->() unless defined $query;
+		# If a query is defined, we send the requested information back
+		# to the caller
 		if($query =~ /name|id/i){
 			return $subname;
 		}elsif($query =~ /execute|exe|exec|e|run/i){
@@ -219,6 +246,88 @@ sub subroutine(&$@){
 			return $lambda;
 		}
 	};
+}
+
+sub stateRoutine(&@){
+	my ($code, @params) = @_;
+	return sub {
+		my $r = $code->(@params);
+		if($r !~ /\d+/){
+			# If result is not a digit, issue a warning
+			cluck "A state routine should return a number indicating next state. Using FALLTHROUGH option.";
+		}
+		return $r;
+	};
+}
+
+sub StateMachine($\@){
+	my ($vtype, $progaref) = @_;
+	my $length = scalar(@$progaref);
+	SWITCH:
+	for($vtype){
+		if(not defined $vtype or /digit/){
+			return sub {
+				my $STATE = 1
+				# A STATE of 0 means clean exit
+				# A negative STATE integer means unclean exit
+				while($STATE > 0){
+					my $r = $progaref->[$STATE]->('program')->($STATE);
+					if($r =~ /\d+/){
+						$STATE = $r;
+					}else{
+						$STATE++;
+						if($STATE > $length - 1){
+							$STATE = 0;
+						}
+					}
+				}
+				return $STATE;
+			};
+		}
+		if(/hash/){
+			return sub {
+				my $STATEH = { state => 1};
+				while($STATEH->{state} > 0){
+					my $prevstate = $STATEH->{state};
+					$STATEH = $progaref->[$STATEH->{state}]->('program')->($STATEH);
+					confess "Return value must be a hash reference" unless ref($STATEH) eq "HASH";
+					confess "No 'state' keyword found. Terminating." unless defined $STATEH->{state};
+					if($prevstate == $STATEH->{state}){
+						# No next state specified, use fallthrough method
+						$STATEH->{state}++;
+						if($STATEH->{state} > $length){
+							# Go back to state 1
+							$STATEH->{state} = 1;
+						}
+					}
+				}
+				return $STATEH;
+			};
+		}
+		if(/array/){
+			return sub {
+				my $STATEA = [1];
+				while($STATEA->[0] > 0){
+					my $prevstate = $STATEA->[0];
+					$STATEA = $progaref->[$STATEA->[0]]->('program')->($STATEA);
+					confess "Return value must be an array reference" unless ref($STATEA) eq "ARRAY";
+					# We have to assume the first index of $aref is the next state
+					confess "0th index of return value must be an integer" unless $STATEA->[0] =~ /\d+/;
+					if($prevstate == $STATEA->[0]){
+						# No state change, use fallthrough
+						$STATEA->[0]++;
+						if($STATEA->[0] > $length){
+							# Restart
+							$STATEA->[0] = 1;
+						}
+					}
+				}
+				return $STATEA;
+			};
+		}else{
+			confess "Invalid parameters";
+		}
+	}
 }
 
 sub curry($$){
@@ -248,7 +357,7 @@ and further extension.
 
 =head1 SYNOPSIS
 
-  use Program;
+	use Program qw/Program StateMachine lambda subroutine curry/;
 	# Create a program out of subroutines
 	# The first paramater, which is the
 	# program name, is optional
@@ -262,7 +371,11 @@ and further extension.
 			return shift() * 10;
 		}
 	);
+	# Run the program
 	print $prog->('exec'); # => 30
+	#or
+	print $prog->('program')->(); # => 30
+
 	# Reuse a program
 	my $nprog = Program(
 		$prog->('program'),
@@ -281,15 +394,46 @@ and further extension.
 	# Append a function to the program
 	push @{$nprog->('seq')}, $nprog->('sub',1);
 	print $nprog->('program')->(); # => 270
+	# or
+	$nprog->('extend', sub { ... });
+	# or
+	$nprog->('append', sub { ... });
+
+	# Prepend a function to the program
+	$nprog->('prepend', sub { ... });
+
+	# Insert/Plug-in a function into the program at an index
+	$nprog->('plugin', 1, sub { ... });
 	
 	# Get the program name/id
 	print $prog->('id'); # => my program
+	print $nprog->('id'); # => 1
 
 	# Display built-in help/usage message
-	$prog->('help');
+	$prog->('help');  # => <help message/usage text>
 	# or
-	$prog->();
-	# => <help message/usage text>
+	$prog->(); # => <help message/usage text>
+
+	# Daemonize a program
+	my $pid = $nprog->('daemonize');
+	# or
+	my $pid = $nprog->('service');
+	# or
+	my $pid = $nprog->('dualfork');
+	print $pid; # => <daemon PID>
+
+	# Stop the daemon
+	kill $pid;
+
+	# Create an anonymous function (pretty much equivalent to `sub {...};`)
+	my $lambda = lambda { ... } qw(param1 param2 ...);
+	$lambda->();
+
+	# Curry
+	my $curried = curry(sub { return 5}, sub { $_[0] * 2});
+	print $curried->(); # => 10
+	my $morecurried = curry($curried, sub { $_[0] * 5});
+	print $morecurried->(); # => 50
 
 
 =head1 DESCRIPTION
@@ -312,15 +456,15 @@ support for debugging purposes.
 
 =head1 SEE ALSO
 
-Functional Programing
-State Machines
-perlref for 'closures'
+Functional programing, State machines, prelref for 'closures'
+and static variables.
 
-majorendian.github.io/software/perl-Program
+Website:
+https://majorendian.github.io/software/perl-Program
 
 =head1 AUTHOR
 
-Ernest Deak, E<lt>tino@E<gt>
+Ernest Deak
 
 =head1 COPYRIGHT AND LICENSE
 
