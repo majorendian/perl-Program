@@ -17,13 +17,14 @@ our @ISA = qw(Exporter);
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 our %EXPORT_TAGS = ( 'all' => [ qw(
-	
+	curry Program genCmdSub lambda subroutine
 ) ] );
 
-our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
+our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} },
+	qw(Program genCmdSub lambda subroutine)
+ );
 
 our @EXPORT = qw(
-	curry2 Program genCmdSub lambda subroutine
 );
 
 our $DEBUG = 0;
@@ -53,6 +54,11 @@ sub genCmdSub(&$;$){
 
 sub Program(@){
 	my $progname = shift;
+	my $extensions_help = ""; # Variable to hold extended usage info
+	sub ___exthelp{
+		no warnings;
+		return sub { $extensions_help };
+	}
 	if(ref($progname)eq"CODE"){
 		# Assuming this is a string, but it doesnt matter.
 		# We allow the caller to use numbers for programs as well
@@ -120,19 +126,70 @@ sub Program(@){
    runCode | run | exe | exec | execute     = Runs the program and returns the result
    help | ? | usage | info                  = Displays this help message
    nextIndex | nidx | ni                    = Returns the next program index to follow
+   dualfork | daemonize | service           = Daemonize program
 
   params :
    This is just the array of parameters equal in function to \@_
 
+Extension information:
+  $extensions_help
+
 INFO
 		print $helpmsg and goto NORMAL_EXIT unless $DEBUG;
 		return $helpmsg;
-		}elsif($query =~ /dualfork|daemonize|service|job|jobify/i){
-			confess "Unimplemented";
+		}elsif($query =~ /dualfork|daemonize|service/i){
+			use File::Temp qw/tempfile/; # Luckily a standard module shipped with perl since v5.6.1
+			my ($tmpfh,$tmpfname) = tempfile;
+			my $pid = fork;
+			if(defined $pid){
+				if($pid != 0){
+					# Parent process
+					# We return, program is daemonized and we no longer need
+					# to run here
+					# We return the PID of the Child-Child process
+					# so that we can send signals to it.
+					# We sleep for 1 second to give the processes
+					# time to write the grandpid into a temporary file
+					sleep 1;
+					local $/ = undef;
+					my $grandpid = <$tmpfh>;
+					close $tmpfh;
+					unlink $tmpfname;
+					return $grandpid;
+				}else{
+					# Child process
+					my $daemonpid = fork;
+					if(defined $daemonpid and $daemonpid != 0){
+						# Child-Parent process
+						# Writes the grandchild pid into the temporary file
+						print $tmpfh $daemonpid;
+						# We close the filehandle in this process
+						close $tmpfh;
+						exit 0; # We dont need this process. So we exit.
+					}else{
+						# Child-Child process
+						# Daemonization successfull, daemonize program and exit
+						# Once program completes, daemonized program terminates
+						# We also close the filehandle here due to process
+						# state duplication
+						close $tmpfh;
+						$PROGRAM->(); # Daemonized program
+						exit 0;
+					}
+				}
+			}else{
+				confess "Failed to create daemon process from program. `fork` returned `undef`";
+			}
+		}elsif($query =~ /exthelp|add\s?help|add\sinfo/i){
+			$extensions_help = shift @params;
+			return 1 if $extensions_help; # Return 1, message successfully added
+			return undef; # Undef is typically an error
 		}else{
 			confess "Incorrect program invokation";
 			return undef;
 		}
+		# If we end up here, something went wrong.
+		# All of our if-blocks return
 		ERROR_EXIT:
 			print STDERR "ERROR[]: Terminating application to prevent further errors.\n";
 			exit -1;
@@ -164,7 +221,7 @@ sub subroutine(&$@){
 	};
 }
 
-sub curry2($$){
+sub curry($$){
 	my ($f1,$f2) = @_;
 	for(@_){
 		if(!ref($_)eq"CODE"){
@@ -172,7 +229,8 @@ sub curry2($$){
 		}
 	}
 	return sub {
-		return $f1->($f2->());
+		# We reverse the curry order for easier use
+		return $f2->($f1->());
 	};
 }
 
