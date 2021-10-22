@@ -2,7 +2,7 @@ use strict;
 use warnings;
 
 use lib 'lib';
-use Program qw/Program StateMachine/;
+use Program qw/Program StateMachine Machine/;
 use Test::More;
 
 {
@@ -99,7 +99,77 @@ CMP
   close $fh;
   select $orig;
   is_deeply $mem, "State 1\nState 3\nState 2\n", "State switching";
-
+}
+{
+  my $prog1 = Program(
+    sub {
+      print "1";
+      return shift();
+    },
+    sub {
+      print "12";
+      my $h = shift;
+      $h->{state} = 'prog3';
+      return $h;
+    }
+  );
+  my $prog2 = Program(
+    sub {
+      print "21";
+      return shift;
+    },
+    sub {
+      print "22";
+      my $m = shift;
+      $m->{state} = 'end';
+      return $m;
+    }
+  );
+  my $prog3 = Program(
+    sub {
+      print "31";
+      return shift;
+    },
+    sub {
+      my $m = shift;
+      print "32";
+      $m->{state} = 'prog4';
+      return $m;
+    }
+  );
+  my $prog4 = Program(
+    sub {
+      print "41";
+      return shift;
+    },
+    sub {
+      print "42";
+      my $h = shift;
+      $h->{state} = 'prog2';
+      $h->{data}->{c}++;
+      return $h;
+    }
+  );
+  my $sm = Machine(
+    start => $prog1,
+    prog2 => $prog2,
+    prog3 => $prog3,
+    prog4 => $prog4,
+    data => {
+      a => 1,
+      b => 2,
+      c => 3
+    }
+  );
+  my $mem;
+  open my $fh, ">", \$mem;
+  my $stdout = select $fh;
+  my $result = $sm->();
+  close $fh;
+  select $stdout;
+  is_deeply $mem, "112313241422122", "Dispatch table machine control flow check";
+  is $result->{state}, 'end', "Check if machine exited with 'end'";
+  is $result->{data}->{c}, 4, "Check if modified data remained modified";
 }
 
 done_testing;

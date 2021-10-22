@@ -18,15 +18,14 @@ our @ISA = qw(Exporter);
 # will save memory.
 
 our %EXPORT_TAGS = ( 'all' => [ qw(
-	curry Program StateMachine loadProgram genCmdSub lambda subroutine
+	curry Program StateMachine Machine loadProgram genCmdSub lambda subroutine
 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} },
-	qw(Program StateMachine loadProgram genCmdSub lambda subroutine)
+	qw(Program StateMachine Machine loadProgram genCmdSub lambda subroutine)
  );
 
 our @EXPORT = qw(
-	SM_EXITOK
 );
 
 our $DEBUG = 0;
@@ -397,19 +396,26 @@ sub curry($$){
 
 sub Machine(@){
 	my %statetable = @_;
-	unless(exists $keys{start} and exists $keys{end}){
-		confess "Machine must have the 'start' key and 'end' key in its state table";
+	unless(exists $statetable{start}){
+		confess "Machine must have the 'start' key in its state table";
 	}
 	return sub {
+		START:
 		my $STATEH = \%statetable;
 		$STATEH->{state} = 'start';
-		while($STATEH->{state} ne 'end'){
+		while($STATEH->{state} ne 'end' or not defined $STATEH->{state}){
 			my $prevstate = $STATEH->{state};
-			$STATEH = $STATEH->{state}->('program')->($STATEH);
+			$STATEH = $STATEH->{$STATEH->{state}}->('program')->($STATEH);
 			if(!ref($STATEH) eq "HASH" or $STATEH->{state} eq $prevstate){
 				confess "This type of machine cannot continue without a state value being returned by its programs. Terminating.";
 			}
+			# Some extra functionality
+			# Reset machine to point 0
+			if($STATEH->{state} eq "_reset"){
+				goto START;
+			}
 		}
+		return $STATEH;
 	};
 }
 
