@@ -395,6 +395,24 @@ sub curry($$){
 	};
 }
 
+sub Machine(@){
+	my %statetable = @_;
+	unless(exists $keys{start} and exists $keys{end}){
+		confess "Machine must have the 'start' key and 'end' key in its state table";
+	}
+	return sub {
+		my $STATEH = \%statetable;
+		$STATEH->{state} = 'start';
+		while($STATEH->{state} ne 'end'){
+			my $prevstate = $STATEH->{state};
+			$STATEH = $STATEH->{state}->('program')->($STATEH);
+			if(!ref($STATEH) eq "HASH" or $STATEH->{state} eq $prevstate){
+				confess "This type of machine cannot continue without a state value being returned by its programs. Terminating.";
+			}
+		}
+	};
+}
+
 sub loadProgram($){
 	my $fname = shift;
 	use autodie;
