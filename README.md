@@ -1,7 +1,7 @@
 [![Build Status](https://app.travis-ci.com/majorendian/perl-Program.svg?branch=master)](https://app.travis-ci.com/majorendian/perl-Program)
 
 ```
-Program version 0.01
+Program extension for perl
 ====================
 
 INSTALLATION
