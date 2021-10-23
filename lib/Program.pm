@@ -9,32 +9,26 @@ require Exporter;
 
 our @ISA = qw(Exporter);
 
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
-
-# This allows declaration	use Program ':all';
-# If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
-# will save memory.
-
 our %EXPORT_TAGS = ( 'all' => [ qw(
 	curry Program StateMachine Machine loadProgram genCmdSub lambda subroutine
 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} },
-	qw(Program StateMachine Machine loadProgram genCmdSub lambda subroutine)
+	qw(list Program StateMachine Machine RulesLinearRandom loadProgram genCmdSub lambda subroutine)
  );
 
 our @EXPORT = qw(
 );
 
 our $DEBUG = 0;
-our $VERSION = '0.01';
+our $VERSION = '0.03';
 
 use strict;
 use warnings FATAL => qw(all);
+
+# Dependency packages
 use Carp qw(cluck confess);
-use Test::More;
+use List::Util qw(min max reduce uniq uniqint any all none first);
 
 sub genCmdSub(&$;$){
 	my ($codeblock, $regex, $name) = @_;
@@ -43,24 +37,24 @@ sub genCmdSub(&$;$){
 		if(defined $input_line && $input_line =~ /$regex/){
 			my @params = map { substr($input_line, $-[$_], $+[$_] - $-[$_]) } (1 .. @--1);
 			return $codeblock->(@params);
-
 		}else{
 			return -1;
 		}
 	};
 }
 
-sub lambda(&@){
+sub lambda(&;@){
 	my ($code, @params) = @_;
 	return sub {
-		$code->(@params, @_);
+		my @allparams = (@params, @_);
+		$code->(@allparams);
 	};
 }
 
 sub Program(@){
 	use Data::Dumper;
 	my $sourcefile = [caller];
-	my $getsrccode = lambda { ___src($_[0], $_[1]) } ($sourcefile->[1], $sourcefile->[2]);
+	my $getsrccode = lambda { ___src($_[0], $_[1]) } $sourcefile->[1], $sourcefile->[2];
 	my $progname = shift;
 	my $extensions_help = ""; # Variable to hold extended usage info
 	sub ___exthelp{
@@ -406,6 +400,91 @@ sub Machine(@){
 		return $STATEH;
 	};
 }
+
+sub list($$){
+	my($size, $initial_val) = @_;
+	return map { $initial_val } 0 .. $size-1;
+}
+
+# Example ruleset matrix
+# my $matrix = {
+# 	1 => {
+# 		up => [2, 3],
+# 		down => [3, 2],
+# 		left => [3, 1],
+# 		right => [3, 2]
+# 	},
+# 	2 => {
+# 		up => [1, 2],
+# 		down => [2, 3],
+# 		right => [1],
+# 		left => [3]
+# 	},
+# 	3 => {
+# 		up => [1, 2],
+# 		down => [2, 1],
+# 		left => [2, 1],
+# 		right => [3, 1]
+# 	}
+# };
+
+sub RulesMatrix($@){
+	my ($size, %rules) = @_;
+	my @matrix = ();
+	for(0 .. $rules{size}-1){
+		push @matrix, [ list $rules{size}, 0 ];
+	}
+	return lambda {
+		confess "Not yet implemented";
+	};
+}
+sub in($@){
+	my ($v, @a) = @_;
+	return first { $v == $_ && 1 } @a;
+}
+
+# Example linear ruleset vector
+# $vector = {
+# 	1 => [ 2, 3, 4],
+# 	2 => [ 1, 3, 2],
+# 	3 => [ 1, 2],
+# 	4 => [ 3, 2]
+# };
+
+# Example linear ruleset vector
+# TODO
+# $vector = {
+# 	1 => [[ 2, 3, 4],[1, 2, 3]],
+#            ^-left | right-^
+# 	2 => [[ 1, 3, 2],[3,2,1]],
+# 	3 => [[ 1, 2],[3,1]],
+# 	4 => [[ 3, 2],[2,3]]
+# };
+
+# So far only generates rules from left to right at random
+sub RulesLinearRandom($%){
+	my ($size, %ruleset) = @_;
+	my @vec = list $size, 0;
+	my $hn = max keys %ruleset;
+	my $iszero = lambda {
+		my $idx = shift;
+		$vec[$idx] = int rand ($hn) if $vec[$idx] == 0;
+	};
+	$iszero->(0);
+	my $determineNext = lambda {
+		my ($curidx) = @_; # Should be correct
+		my $linearRule = $ruleset{$curidx};
+		return $ruleset{$curidx}->[int(rand(@{$ruleset{$curidx}}))-1];
+	};
+	return lambda {
+		for(0 .. $#vec){
+			$vec[$_] = $determineNext->($_+1);
+		}
+		return \@vec;
+	};
+}
+
+*Rules = *RulesMatrix;
 
 # NOTE: Idea for later
 sub Monolith(@){
