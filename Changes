@@ -1,14 +1,28 @@
 Revision history for Perl extension Program.
 
+0.05 2021-10-23 23:15
+	- Added more functions to core module Program
+			like `randomchoice`, `funcall` and `in`
+	- Finished `RulesLinear` function. Now returns a sub with proper
+			list of generated values based on an simple interger-driven
+			rule-set
+	- Changed the `in` function to return either true or false
+			if an element is in the list
+	- More tests to validate program correctness	
+	- This package now depends on:
+			Carp, List::Util, Data::Dumper, Test::More
+			All of which ship with perl itself, except maybe Test::More
+
 0.03  2021-10-23 16:11
-	Added Rules, RulesLinear, RulesMatrix, RulesLinearRandom functions
+	- Added Rules, RulesLinear, RulesMatrix, RulesLinearRandom functions
 		Only RulesLinearRandom is exported and tested working
-	Changed lambda function to lambda(&;@) to accept optional second param
-		Additionally slightly changed the way parameters are handled
-	Added `list` function to easily create lists with `map`
+	- Changed lambda function to lambda(&;@) to accept optional
+			second param
+	- Additionally slightly changed the way parameters are handled
+	- Added `list` function to easily create lists with `map`
 
 0.01  2021-10-22 18:41
-	original version; created by h2xs 1.23 with options
+	- original version; created by h2xs 1.23 with options
 		-X Program
-	Initial functions: Program, StateMachine, Machine, lambda, curry
+	- Initial functions: Program, StateMachine, Machine, lambda, curry
 

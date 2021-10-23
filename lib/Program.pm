@@ -14,14 +14,14 @@ our %EXPORT_TAGS = ( 'all' => [ qw(
 ) ] );
 
 our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} },
-	qw(list Program StateMachine Machine RulesLinearRandom loadProgram genCmdSub lambda subroutine)
+	qw(list in funcall randomchoice RulesLinear Program StateMachine Machine RulesLinearRandom loadProgram genCmdSub lambda subroutine)
  );
 
 our @EXPORT = qw(
 );
 
 our $DEBUG = 0;
-our $VERSION = '0.03';
+our $VERSION = '0.05';
 
 use strict;
 use warnings FATAL => qw(all);
@@ -29,6 +29,7 @@ use warnings FATAL => qw(all);
 # Dependency packages
 use Carp qw(cluck confess);
 use List::Util qw(min max reduce uniq uniqint any all none first);
+use Data::Dumper;
 
 sub genCmdSub(&$;$){
 	my ($codeblock, $regex, $name) = @_;
@@ -438,18 +439,13 @@ sub RulesMatrix($@){
 		confess "Not yet implemented";
 	};
 }
+
+# Returns true if param1 is in list param2
 sub in($@){
 	my ($v, @a) = @_;
-	return first { $v == $_ && 1 } @a;
+	return any { $v == $_ } @a;
 }
 
-# Example linear ruleset vector
-# $vector = {
-# 	1 => [ 2, 3, 4],
-# 	2 => [ 1, 3, 2],
-# 	3 => [ 1, 2],
-# 	4 => [ 3, 2]
-# };
 
 # Example linear ruleset vector
 # TODO
@@ -459,6 +455,53 @@ sub in($@){
 # 	2 => [[ 1, 3, 2],[3,2,1]],
 # 	3 => [[ 1, 2],[3,1]],
 # 	4 => [[ 3, 2],[2,3]]
+# };
+
+sub randomchoice(@){
+	my $r = $_[int(rand($#_))];
+	return $r;
+}
+
+sub funcall($;@){
+	my $lbd = shift;
+	confess "Not a function reference" unless ref($lbd) eq "CODE";
+	return $lbd->(@_);
+}
+
+sub RulesLinear($@){
+	my %ruleset = @_;
+	my $size = (values %ruleset);
+	my $resolve; # For possible recursion
+	$resolve = lambda {
+		# my $position =	(randomchoice
+		# 									@{(randomchoice
+		# 										@{(randomchoice values %ruleset)})});
+		my $position = int(randomchoice keys %ruleset);
+		my @vec = list $size, undef;
+		$vec[0] = $position;
+		for(1 .. $#vec){
+			my $left = $ruleset{$position}->[0];
+			my $right = $ruleset{$position}->[1];
+			for my $candidate(@$right){
+				my $cleft = $ruleset{$candidate}->[0];
+				if(in($position, @$cleft)){
+					$vec[$_] = $candidate;
+					$position = $candidate;
+					next;
+				}
+			}
+		}
+		return \@vec;
+	};
+	return $resolve;
+}
+
+# Example linear ruleset vector
+# $vector = {
+# 	1 => [ 2, 3, 4],
+# 	2 => [ 1, 3, 2],
+# 	3 => [ 1, 2],
+# 	4 => [ 3, 2]
 # };
 
 # So far only generates rules from left to right at random

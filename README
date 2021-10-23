@@ -12,7 +12,7 @@ To install this module type the following:
 
 DEPENDENCIES
 
-None so far
+Carp, Data::Dumper, List::Util, Test::More
 
 COPYRIGHT AND LICENCE
 
