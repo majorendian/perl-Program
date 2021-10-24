@@ -2,6 +2,8 @@ language: perl
 perl:
   "5.32"
 
+before_deploy:
+    "cd tools; bash create-module-package.sh; cd .."
 deploy:
   provider: releases
   api_key: "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"
@@ -9,3 +11,4 @@ deploy:
   skip-cleanup: true
   on:
     tags: true
+  prerelease: true
