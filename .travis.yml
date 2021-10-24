@@ -6,7 +6,6 @@ before_deploy:
     "cd tools; bash create-module-package.sh; cd .."
 deploy:
   provider: releases
-  api_key: "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"
   file: dist/perl-Program.tar.gz
   skip-cleanup: true
   on:
