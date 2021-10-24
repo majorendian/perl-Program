@@ -1,8 +1,20 @@
-[![Build Status](https://app.travis-ci.com/majorendian/perl-Program.svg?branch=master)](https://app.travis-ci.com/majorendian/perl-Program)
+Travis CI: [![Build Status](https://app.travis-ci.com/majorendian/perl-Program.svg?branch=master)](https://app.travis-ci.com/majorendian/perl-Program)
 
 ```
-Program extension for perl
+'Program' extension for perl
 ====================
+
+This module provides you with facilities to create
+arbitrarily complex functions with the help of
+functions like 'lambda', 'curry', 'in', and others
+
+It provides facilities for rule-based generation
+of numbers which can be used in, random number
+generation based on a ruleset.
+
+Documentation can be found with 'perldoc Program'
+
+Further documentation will be provided in 'perdoc Program::Examples'
 
 INSTALLATION
 

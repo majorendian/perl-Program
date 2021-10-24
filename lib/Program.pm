@@ -9,19 +9,18 @@ require Exporter;
 
 our @ISA = qw(Exporter);
 
-our %EXPORT_TAGS = ( 'all' => [ qw(
-	curry Program StateMachine Machine loadProgram genCmdSub lambda subroutine
-) ] );
 
-our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} },
-	qw(list in funcall randomchoice RulesLinear Program StateMachine Machine RulesLinearRandom loadProgram genCmdSub lambda subroutine)
+our @EXPORT_OK = (
+	qw(list curry in funcall randomchoice RulesLinear Program StateMachine Machine RulesLinearRandom loadProgram genCmdSub lambda subroutine)
  );
+ 
+our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
 
 our @EXPORT = qw(
 );
 
 our $DEBUG = 0;
-our $VERSION = '0.05';
+our $VERSION = '0.07';
 
 use strict;
 use warnings FATAL => qw(all);
@@ -473,10 +472,7 @@ sub RulesLinear($@){
 	my $size = (values %ruleset);
 	my $resolve; # For possible recursion
 	$resolve = lambda {
-		# my $position =	(randomchoice
-		# 									@{(randomchoice
-		# 										@{(randomchoice values %ruleset)})});
-		my $position = int(randomchoice keys %ruleset);
+		my $position = shift // int(randomchoice keys %ruleset);
 		my @vec = list $size, undef;
 		$vec[0] = $position;
 		for(1 .. $#vec){
@@ -491,7 +487,7 @@ sub RulesLinear($@){
 				}
 			}
 		}
-		return \@vec;
+		return wantarray? @vec : pack("(C*)", @vec);
 	};
 	return $resolve;
 }
@@ -523,7 +519,7 @@ sub RulesLinearRandom($%){
 		for(0 .. $#vec){
 			$vec[$_] = $determineNext->($_+1);
 		}
-		return \@vec;
+		return wantarray ? @vec : pack("C*", @vec);
 	};
 }
 
@@ -547,10 +543,6 @@ sub loadProgram($){
 	# This returns the program subroutine
 	return eval $contents;
 }
-
-# Preloaded methods go here.
-
-# Autoload methods go after =cut, and are processed by the autosplit program.
 
 1;
 __END__
@@ -661,13 +653,105 @@ support for debugging purposes.
 
 =item Program
 
+	See SYNOPSIS for example usage.
+
 =item StateMachine
 
-=item lambda
+	TODO
+
+=item RulesLinearRandom
+
+	Returns a random sequence of numbers based on a
+	random value in the ruleset
+
+=item RulesLinear($optionalStartPosition)
+
+	Returns a sequence of numbers based on the ruleset.
+	returns a packed value in scalar context and
+	an array in list context.
+
+	In scalar context, the values can be unpacked
+	into an array with 'unpack("C*", $packed);'
+
+	The size of the array is equal to the number
+	of keys in the parameter.
+
+	This function takes an optional start position.
+	If the start position is not specified, it picks
+	one at random.
+
+	CODE:
+	my $rules = RulesLinear(
+		0 => [[4],[1]],
+		1 => [[0],[2]],
+		2 => [[1],[3]],
+		3 => [[2],[4]],
+		4 => [[3],[0]]
+	);
+	my @result = $rules->();
+	print @result; # => 40123 for example
+	# Linear rules are made out of valid 'preceeding' integers
+	# and valid 'follow-up' integers. If the rule cannot be satisfied
+	# 'undef' remains in its place
+	---
+
+	The above ruleset will generate a sequence of numbers
+	from 0 to 4 increasing, starting from a random
+	position. So 12340, 34012, 23401, etc.
+
+	Each key corresponds to a list of pairs.
+	The list on the left represents 'allowed' integers
+	on the left from the given number
+	The list on the right represents 'allowed' integers
+	on the right from the given number.
+
+	So, in our example 0 can be followed up only with
+	the number 1, while its preceeding number must be 4.
+	The number 1 can only be followed up by the number
+	2 but can only be preceeded by the number 0
+	The number 2 can be followed up only by the number
+	3 but can only be preceeded by the number 1
+
+	Simmilarly, the number 2 must be preceeded by 1
+	The number 3 must be preceeded by 2
+	The number 0 must be preceeded by 4
+
+	In case the rule cannot be satisfied, undef
+	is placed in its place.
+	For example, if the above example had the code
+		0 => [[0],[1]],
+		...
+	Then right after 4, undef would be placed.
+	Because we have said, that the number 0 must be
+	preceeded by ONLY a 0, and that the only valid
+	number following up 4 is 0, the ruleset
+	cannot be satisifed.
+	If instead we wrote
+		0 => [[4,0],[1]],
+		...
+	Then this issue will be resolved, since
+	the number 0 can now be preceeded by a 4 as well.
+
+=item lambda({CODE}, @params)
+
+	returns a function with baked-in @params
 
 =item subroutine
 
-=item curry
+	TODO
+
+=item curry(\&func1, \&func2)
+
+	Returns a function that combines \&func1 and \&func2
+
+=item in($what, @array)
+
+	Returns true if $what is found in @array.
+	false otherwise
+
+=item randomchoice(@array)
+
+	Returns a random value from the given array
 
 =back
 
@@ -675,6 +759,8 @@ support for debugging purposes.
 
 Functional programing, State machines, prelref for 'closures'
 and static variables.
+
+Possibly perlpacktut for pack/unpack functions
 
 Website:
 https://majorendian.github.io/software/perl-Program
