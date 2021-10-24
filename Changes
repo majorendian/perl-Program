@@ -1,38 +1,49 @@
 Revision history for Perl extension "Program"
 
-0.07 2021-10-24 23:03
-	- Changed the return value for Rules* functions
-			it now returns an array in list context and a
-			packed scalar value in scalar context
-			The scalar value can be unpacked with `unpack("C*", $result)`	
-	- As of this version, automatic deployment is being done by
-			Tracis CI on each tagged commit
-	- Added documentation for RulesLinear function and other smaller
-			functions
+This programs versioning system is as follows:
+  major.minor_patch 
+  or
+  major.minorp<N> - where N is a patch number so for example:
+    v0.07p5 - major 0, minor 07, patch 5
+      the above is equivalent to v0.07_5
+
+
+Each <EVEN> number represents a <STABLE> release
+while each <ODD> number represents a <DEVELOPMENT> release
+
+0.07  2021-10-24 23:03
+  - Changed the return value for Rules* functions
+      it now returns an array in list context and a
+      packed scalar value in scalar context
+      The scalar value can be unpacked with `unpack("C*", $result)`	
+  - As of this version, automatic deployment is being done by
+      Tracis CI on each tagged commit
+  - Added documentation for RulesLinear function and other smaller
+      functions
 
 0.05  2021-10-23 23:15
-	- Added more functions to core module Program
-			like `randomchoice`, `funcall` and `in`
-	- Finished `RulesLinear` function. Now returns a sub with proper
-			list of generated values based on an simple interger-driven
-			rule-set
-	- Changed the `in` function to return either true or false
-			if an element is in the list
-	- More tests to validate program correctness	
-	- This package now depends on:
-			Carp, List::Util, Data::Dumper, Test::More
-			All of which ship with perl itself, except maybe Test::More
+  - Added more functions to core module Program
+      like `randomchoice`, `funcall` and `in`
+  - Finished `RulesLinear` function. Now returns a sub with proper
+      list of generated values based on an simple interger-driven
+      rule-set
+  - Changed the `in` function to return either true or false
+      if an element is in the list
+  - More tests to validate program correctness	
+  - This package now depends on:
+      Carp, List::Util, Data::Dumper, Test::More
+      All of which ship with perl itself, except maybe Test::More
 
 0.03  2021-10-23 16:11
-	- Added Rules, RulesLinear, RulesMatrix, RulesLinearRandom functions
-		Only RulesLinearRandom is exported and tested working
-	- Changed lambda function to lambda(&;@) to accept optional
-			second param
-	- Additionally slightly changed the way parameters are handled
-	- Added `list` function to easily create lists with `map`
+  - Added Rules, RulesLinear, RulesMatrix, RulesLinearRandom functions
+    Only RulesLinearRandom is exported and tested working
+  - Changed lambda function to lambda(&;@) to accept optional
+      second param
+  - Additionally slightly changed the way parameters are handled
+  - Added `list` function to easily create lists with `map`
 
 0.01  2021-10-22 18:41
-	- original version; created by h2xs 1.23 with options
-		-X Program
-	- Initial functions: Program, StateMachine, Machine, lambda, curry
+  - original version; created by h2xs 1.23 with options
+    -X Program
+  - Initial functions: Program, StateMachine, Machine, lambda, curry
 

@@ -1,6 +1,6 @@
 language: perl
 perl: '5.32'
-before_deploy: bash tools/create-module-package.sh
+before_deploy: make clean && bash tools/create-module-package.sh
 deploy:
   provider: releases
   file: dist/perl-Program.tar.gz
