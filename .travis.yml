@@ -1,3 +1,11 @@
 language: perl
 perl:
   "5.32"
+
+deploy:
+  provider: releases
+  api_key: "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"
+  file: dist/perl-Program.tar.gz
+  skip-cleanup: true
+  on:
+    tags: true
