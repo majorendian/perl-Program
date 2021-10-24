@@ -1,9 +1,6 @@
 language: perl
-perl:
-  "5.32"
-
-before_deploy:
-    "cd tools; bash create-module-package.sh; cd .."
+perl: '5.32'
+before_deploy: cd tools; bash create-module-package.sh; cd ..
 deploy:
   provider: releases
   file: dist/perl-Program.tar.gz
@@ -11,3 +8,6 @@ deploy:
   on:
     tags: true
   prerelease: true
+env:
+  global:
+    secure: NqgBRrIfIEYUKYMZIMoqUgHhrzWy3+diocJUaoiF9YB0kOWtvdOE6cHsILF1hVrjp+5fHWz6BzCiNr6CCVbQOfcF/hSBASfoovibILGSebQnJJXygFuSjDr648mIa7bd+AEfEcVzFKSB9iHiTCOfMVOnD+Uo2yUp5ceVp2N7vbqDV2TfCbxpP7/pMr7dDi0miDPwNgpgV3c/gxa+vnD3tsZrjNQV5eNerYMYu1ZZPQhicTrYhVCCY1cdmVRU6tFd4n47hdUeWGrXcbkp3nnuu+eqLd84Jgf2IVYzpcrTQ4lNEAaDwUXv45FtZt7Q/AfYj3EULZuSfFzD5sD/eTjHMs4/xDXXFtmRZwWv6W8elkd/mg0lz/56F0o4wcWk6lYZb6ToRmMeyBggaTSK6nDCQV9GUQI7HIsDGkO6z1biFbccOtpUUG0qgsE1mIRuwq62hwislCp1FV8GM/dana+kNUNhrBeL1OhLbUX5dGp3rM8z8NL+bjBp+Z4lDvq1uI7MVvJoe+f5Wf2GqLb2dJAHzH8HeZMhhOmiPPyzpvL/g97fTaR9L6hsFwQtxRvrBZugb8TD6zPmcgEJE6KHdtwE4mJYI45kV2RVH2ye2y3ga4asLFp16PfDYTg8Mt4VJjGgDkAJb23L8BefwXKKhvKhl7065jW1jJEy+jIM+XT/6T0=
