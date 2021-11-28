@@ -11,6 +11,11 @@ This programs versioning system is as follows:
 Each <EVEN> number represents a <STABLE> release
 while each <ODD> number represents a <DEVELOPMENT> release
 
+0.08  2021-11-28 22:47
+  - Removed explicit 'undef' from Program returns
+	- A small change in the doc
+	- Added a .perlcriticrc file and .gitignore file
+
 0.07  2021-10-24 23:03
   - Changed the return value for Rules* functions
       it now returns an array in list context and a

@@ -6,4 +6,5 @@ t/Program.t
 t/a_program.t
 t/b_statemachine.t
 t/c_lambda.t
+t/d_rules.t
 lib/Program.pm

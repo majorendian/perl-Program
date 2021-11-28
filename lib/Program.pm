@@ -20,7 +20,7 @@ our @EXPORT = qw(
 );
 
 our $DEBUG = 0;
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 use strict;
 use warnings FATAL => qw(all);
@@ -52,7 +52,6 @@ sub lambda(&;@){
 }
 
 sub Program(@){
-	use Data::Dumper;
 	my $sourcefile = [caller];
 	my $getsrccode = lambda { ___src($_[0], $_[1]) } $sourcefile->[1], $sourcefile->[2];
 	my $progname = shift;
@@ -118,6 +117,7 @@ sub Program(@){
 			return $sourcefile; # Return program source file + line number
 		}elsif($query =~ /src/i){
 			# Here we return the program source code
+			# NOTE: I know this isn't lexically scoped.
 			sub ___src{
 				my ($file, $line) = @_;
 				use autodie;
@@ -153,7 +153,7 @@ sub Program(@){
 			if(-f $fname){
 				return 1; # Successfully stored program
 			}else{
-				return undef; # Signal error, file does not exist, something went wrong
+				return; # Signal error, file does not exist, something went wrong
 			}
 		}elsif($query =~ /run\s?Code|run|exe|exec|execute/i){
 			return $PROGRAM->(@params); # We execute the program and return its return value
@@ -232,7 +232,7 @@ EXTINFO
 			___exthelp()->(shift @params);
 			return 1 if ___exthelp()->(); # Return 1, message successfully added
 			goto ERROR_EXIT;
-			return undef; # Undef is typically an error
+			return; # Undef is typically an error
 		}elsif($query =~ /^(extend|append)/ni){
 			# Append function to the end of the program
 			my $sub = shift @params;
@@ -259,7 +259,7 @@ EXTINFO
 			return 1;
 		}else{
 			confess "Incorrect program invocation";
-			return undef;
+			return;
 		}
 		# If we end up here, something went wrong.
 		# All of our if-blocks return
@@ -541,6 +541,7 @@ sub loadProgram($){
 	my $contents = <$fh>;
 	close $fh;
 	# This returns the program subroutine
+	# NOTE: String eval intentional here
 	return eval $contents;
 }
 
@@ -642,7 +643,7 @@ of programs of arbitrary length and complexity.
 The flexibility provided herewithin aims to simplify
 the extension of any given program created with this
 method. Allowing function-based programs to be
-updated/changed/repaired 'on the fly'
+updated/changed/repaired 'on the fly' so to speak
 
 As of version 0.01 there isn't much built-in
 support for debugging purposes.

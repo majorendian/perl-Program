@@ -2,3 +2,8 @@ travis.log
 Makefile.old
 dist/*
 input.txt
+Makefile
+MYMETA.*
+blib/*
+*.swp
+pm_to_blib

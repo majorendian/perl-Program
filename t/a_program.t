@@ -109,7 +109,8 @@ $progsource->('store', "/tmp/progsource.pl");
 my $loadedtwo = loadProgram("/tmp/progsource.pl");
 unlink "/tmp/progsource.pl";
 is $loadedtwo->('exec'), $progsource->('exec'), "Load program routine check";
-undef $loaded, $loadedtwo;
+undef $loaded;
+undef $loadedtwo;
 
 my $plugable = Program(
 	sub {
